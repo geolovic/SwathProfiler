@@ -50,7 +50,7 @@ import matplotlib.pyplot as plt
 Line_Shapefile = "data/perfiles.shp"
 Digital_Elevation_Model = "data/coskie.tif"
 Names_field = "Name"
-Swath_width = 1000
+Swath_width = 500
 Number_of_lines = 0
 Step_size = 0
 Draw_data = True
@@ -498,8 +498,8 @@ class SwathProfile:
         buff_pol = line.buffer(width)
         raster_extent = Polygon([(raster.XMin, raster.YMin), (raster.XMin, raster.YMax), (raster.XMax, raster.YMax),
                                  (raster.XMax, raster.YMin), (raster.XMin, raster.YMin)])
-
-        return raster_extent.covers(buff_pol)
+        inside = raster_extent.covers(buff_pol)
+        return inside
 
 
 class SwathGraph:

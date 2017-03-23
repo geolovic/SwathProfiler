@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  SwathProfile_qgs_debug.py
+#  SwathProfile.py
 #  
 #  Copyright (C) 2016  J. Vicente Perez, Universidad de Granada
 #  

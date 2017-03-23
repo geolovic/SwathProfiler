@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #  SwathProfile.py
 #  
 #  Copyright (C) 2016  J. Vicente Perez, Universidad de Granada
@@ -26,7 +27,7 @@
 #  Version: 1.0 
 #  November 23, 2016
 
-#  Last modified December 03, 2016
+#  Last modified March 23, 2017
 
 import ogr
 import gdal
@@ -35,31 +36,18 @@ from shapely.geometry import Polygon
 import numpy as np
 import matplotlib.pyplot as plt
 
-
+# QGIS Toolbox input parameters
 ##Line_Shapefile=vector
 ##Digital_Elevation_Model=raster
 ##Names_field=field Line_Shapefile
-##Swath_width=number 500
+##Swath_width=number 1000
 ##Number_of_lines=number 0
 ##Step_size=number 0
 ##Draw_data=boolean True
 ##Draw_legend=boolean True
 
-#Debug...
-# import os, sys
-# thisdir = os.path.dirname(sys.argv[0])
-# os.chdir(os.path.dirname(thisdir))
-# print os.getcwd()
-# Line_Shapefile = "tests/data/in/perfiles.shp"
-# Digital_Elevation_Model  = "tests/data/in/coskie.tif"
-# Names_field = "Name"
-# Swath_width = 1000
-# Number_of_lines =  0
-# Step_size = 0
-# Draw_data = True
-# Draw_legend = True
 
-def Open(raster_path):
+def open_raster(raster_path):
     """
     This function open a raster and returns a pRaster instance
 
@@ -74,9 +62,72 @@ def Open(raster_path):
     proj = raster.GetProjection()
     nodata = raster.GetRasterBand(1).GetNoDataValue()
 
-    return pRaster(array, geot, proj, nodata)
+    return PRaster(array, geot, proj, nodata)
 
-class pRaster:
+
+def create(path, xsize, ysize, datatype=gdal.GDT_Int16, projection="",
+           geotransform=(0.0, 1.0, 0.0, 0.0, 0.0, 1.0), nodata=None):
+    """
+    This function creates a pRaster object (in Memory)
+
+    Parameters:
+    ==================
+    xsize :: *int*
+        Number of columns of the raster
+    ysize :: *int*
+        Number of rows of the raster
+    datatype :: *gdal.GDT type (Default=gdal.GDT_Int16)*
+        Type of the data for the new raster (default gdal.GDT_Int16)
+    projection :: *str (Default="")*
+        Projection for the new raster in wkt
+    geotransform :: *tuple (Default=(0.0, 1.0, 0.0, 0.0, 0.0, 1.0))*
+        Geotransform matrix for the new raster
+    nodata :: *value (Default=None)*
+        Nodata value for the new raster (default None)
+    """
+    driver = gdal.GetDriverByName("GTiff")
+    raster = driver.Create(path, xsize, ysize, 1, datatype)
+    raster.SetGeoTransform(geotransform)
+    raster.SetProjection(projection)
+    if nodata is not None:
+        banda = raster.GetRasterBand(1)
+        banda.SetNoDataValue(nodata)
+
+    return open_raster(path)
+
+
+def create_from_template(path, template, datatype=gdal.GDT_Int16, nodata=None):
+    """
+    This function creates a raster with the same parameters than the template
+    and returns a pRaster object
+
+    Parameters:
+    ==================
+    path :: *str*
+        Full path to the raster to be created
+    template :: *str*
+        Full path to the raster template
+    datatype :: *gdal.GDT type (Default=gdal.GDT_Int16)*
+        Pixel datatype
+    nodata :: *value (Default=None)*
+        Value for nodata
+    """
+    driver = gdal.GetDriverByName("GTiff")
+    temp_raster = gdal.Open(template)
+    temp_banda = temp_raster.GetRasterBand(1)
+    xsize = temp_banda.XSize
+    ysize = temp_banda.YSize
+    raster = driver.Create(path, xsize, ysize, 1, datatype)
+    if nodata is not None:
+        banda = raster.GetRasterBand(1)
+        banda.SetNoDataValue(nodata)
+    raster.SetGeoTransform(temp_raster.GetGeoTransform())
+    raster.SetProjection(temp_raster.GetProjection())
+
+    return open_raster(path)
+
+
+class PRaster:
     """
     Class that defines by combining a numpy.array with some Raster parameters
     as cellsize, extension, nodata values, etc.
@@ -106,7 +157,7 @@ class pRaster:
         self.XMax = geot[0] + self.cellsize * self.XSize
         self.YMax = geot[3]
 
-    def GetCellValue(self, cell):
+    def get_cell_value(self, cell):
         """
         This function returns the value of the raster at a cell location.
         cell :: *tuple*
@@ -120,16 +171,16 @@ class pRaster:
         else:
             return self.array[cell[0], cell[1]]
 
-    def GetXYValue(self, point):
+    def get_xy_value(self, point):
         """
         This function returns the value of the raster at a point location.
         point :: *tuple*
             Tuple of floats (x, y)
         """
-        cell = self.XY2Cell(point)
-        return self.GetCellValue(cell)
+        cell = self.xy_2_cell(point)
+        return self.get_cell_value(cell)
 
-    def XY2Cell(self, point):
+    def xy_2_cell(self, point):
         """
         This function returns the position of a point in row-col coordinates
         point :: *tuple*
@@ -139,7 +190,7 @@ class pRaster:
         col = int((point[0] - self.XMin) / self.cellsize)
         return row, col
 
-    def Cell2XY(self, cell):
+    def cell_2_xy(self, cell):
         """
         This function returns the position of a cell in XY coordinates
         cell :: *tuple*
@@ -149,12 +200,145 @@ class pRaster:
         y = self.YMax - (self.cellsize * cell[0]) - (self.cellsize / 2)
         return x, y
 
-class SwathProfile():
+    def set_cell_value(self, cell, value):
+        """
+        This function writes a value at a cell location. Values are wrote in
+        internal raster numpy array.
+        value :: *number*
+            Value to write in the raster
+        cell :: *tuple*
+            Tuple of ints (row, col) where the value will write
+        """
+        self.array[cell[0], cell[1]] = value
+
+    def get_window(self, cell, ncells):
+        """
+        Esta función obtiene una ventana de NxN alrededor de un punto del raster.
+        La función incluye un tratamiento para obtener los valores en los bordes.
+
+        Parametros:
+        ===========
+        cell :: *tuple*
+            Tuple of ints (row, col) que representa el punto central
+        ncells :: *int*
+          Numero de celdas de la ventana alrededor del punto central
+
+        Retorna:
+        ==========
+        arr :: *numpy.Array*
+          Numpy array con los datos en la ventana de análisis
+        """
+        row0 = cell[0] - ncells
+        col0 = cell[1] - ncells
+
+        nrows = ncells * 2 + 1
+        ncols = ncells * 2 + 1
+
+        # Check boundary conditions
+        if row0 < 0:
+            nrows += row0
+            row0 = 0
+        if col0 < 0:
+            ncols += col0
+            col0 = 0
+
+        if row0 + nrows >= self.array.shape[0]:
+            nrows = self.array.shape[0] - row0
+        if col0 + ncols >= self.array.shape[1]:
+            ncols = self.array.shape[1] - col0
+
+            # Get raster data in the window and return an array
+        window = self.array[row0:row0 + nrows, col0:col0 + ncols]
+
+        if window.size > 0:
+            return window
+        else:
+            return None
+
+    def get_flow(self, cell):
+        """
+        This function returns the next cell where the flow goes
+        It suppouses that the current is a flow accumulation raster
+
+        Parameters:
+        ==================
+        *cell* : tuple
+            Tuple of ints (row, col)
+
+        Output:
+        ===================
+        *flow_pos* : tuple
+            Tuple (row, col) of the next cell where the flow goes down stream
+        """
+        vec_adyacentes = [(-1, 0), (0, -1), (0, 1), (1, 0)]
+        vec_diagonales = [(-1, -1), (-1, 1), (1, -1), (1, 1)]
+
+        # Suponemos que el valor máximo es el mismo
+        cell_value = self.get_cell_value(cell)
+
+        max_value = cell_value
+        max_pos = cell
+
+        # La celda a la que va el flujo no tiene porque ser la de mayor valor de flow accumulation
+        # En el caso de que el flujo haga una L la máxima es la diagonal, pero el flujo va a la adyacente
+        # Por ello primero se comprueban las celdas adyacentes y luego las diagonales
+
+        for n in vec_adyacentes:
+            row = cell[0] + n[0]
+            col = cell[1] + n[1]
+            if (row < self.YSize and row >= 0) and (col < self.XSize and col >= 0):
+                # A veces en raster UInt16 o UInt32 nodata puede ser un valor muy alto
+                if self.get_cell_value((row, col)) > max_value:
+                    max_value = self.get_cell_value((row, col))
+                    max_pos = (row, col)
+
+        if cell_value == max_value:
+            # Si no hay ninguna celda adyacente con un valor mayor de f
+            for n in vec_diagonales:
+                row = cell[0] + n[0]
+                col = cell[1] + n[1]
+                if (row < self.YSize and row >= 0) and (col < self.XSize and col >= 0):
+                    # A veces en raster UInt16 o UInt32 nodata puede ser un valor muy alto
+                    if self.get_cell_value((row, col)) > max_value and max_value != self.nodata:
+                        max_value = self.get_cell_value((row, col))
+                        max_pos = (row, col)
+
+        if max_value == cell_value or max_value == self.nodata:
+            return None
+        else:
+            return max_pos
+
+    def save(self, path):
+        """
+        This function writes the content of the internal array into a new raster.
+        """
+        types = {'int8': 3, 'int16': 3, 'int32': 5, 'int64': 5, 'uint8': 1, 'uint16': 2,
+                 'uint32': 4, 'uint64': 4, 'float16': 6, 'float32': 6, 'float64': 7}
+        if self.array.dtype not in types.keys():
+            return
+        else:
+            tipo = types[str(self.array.dtype)]
+
+        driver = gdal.GetDriverByName("GTiff")
+        raster = driver.Create(path, self.XSize, self.YSize, 1, tipo)
+        raster.SetGeoTransform(self.geot)
+        raster.SetProjection(self.proj)
+        if self.nodata:
+            raster.GetRasterBand(1).SetNoDataValue(self.nodata)
+        raster.GetRasterBand(1).WriteArray(self.array)
+
+
+class SwathProfile:
     def __init__(self, line=None, dem=None, width=0, n_lines=None, step_size=None, name=""):
         """
-        Class to create a swath profile and related parameters.
-        If
+        Class to create a swath profile and related parameters
 
+        :param line: shapely.geometry.LineString - LineString the swath profile centerline
+        :param dem: praster.pRaster - pRaster with the Digital Elevation Model
+        :param width: float or int - Half-width of the swath profile (in data units)
+        :param n_lines: int - number of lines at each side of the swath centerline
+        :param step_size: float - Step-size to get elevation points along the profile
+        :param name: str - Name of the profile
         """
 
         self.swaths = []
@@ -211,24 +395,24 @@ class SwathProfile():
 
     def draw_swath(self, ax, legend=False, drawdata=True, **kwargs):
 
-        COLORS = {"data": (0.8, 0.8, 0.8),
+        colors = {"data": (0.8, 0.8, 0.8),
                   "min": (202. / 255, 111. / 255, 30. / 255),
                   "max": (169. / 255, 50. / 255, 38. / 255),
                   "mean": (247. / 255, 220. / 255, 111. / 255),
                   "q1": (22. / 255, 160. / 255, 133. / 255),
                   "q3": (22. / 255, 160. / 255, 133. / 255)}
 
-        COLORS.update(kwargs)
+        colors.update(kwargs)
 
         if drawdata:
             for n in range(self.swaths.shape[1]):
-                ax.plot(self.li, self.swaths[:, n], linewidth=0.75, color=COLORS["data"])
+                ax.plot(self.li, self.swaths[:, n], linewidth=0.75, color=colors["data"])
 
-        ax.plot(self.li, self.maxz, linewidth=1.5, color=COLORS["max"], label="max")
-        ax.plot(self.li, self.minz, linewidth=1.5, color=COLORS["min"], label="min")
-        ax.plot(self.li, self.meanz, linewidth=1.5, color=COLORS["mean"], label="mean")
-        ax.plot(self.li, self.q1, linewidth=1.5, color=COLORS["q1"], label="q1")
-        ax.plot(self.li, self.q3, linewidth=1.5, color=COLORS["q3"], label="q3")
+        ax.plot(self.li, self.maxz, linewidth=1.5, color=colors["max"], label="max")
+        ax.plot(self.li, self.minz, linewidth=1.5, color=colors["min"], label="min")
+        ax.plot(self.li, self.meanz, linewidth=1.5, color=colors["mean"], label="mean")
+        ax.plot(self.li, self.q1, linewidth=1.5, color=colors["q1"], label="q1")
+        ax.plot(self.li, self.q3, linewidth=1.5, color=colors["q3"], label="q3")
 
         ax.set_xlabel("Distance [m]")
         ax.set_ylabel("Elevation [m]")
@@ -243,17 +427,17 @@ class SwathProfile():
             for tx in legend.texts:
                 tx.set_fontsize(12)
 
-    def draw_THI(self, ax, enhanced=False):
+    def draw_thi(self, ax, enhanced=False):
         if enhanced:
-            HI = (self.HI - 0.2) / 0.6
+            hi = (self.HI - 0.2) / 0.6
         else:
-            HI = self.HI
+            hi = self.HI
 
         max_relief = float(np.nanmax(self.relief))
         wi = 0.2 * np.log(self.relief / max_relief) + 1
-        THI = (HI - 0.5) * wi + 0.5
+        thi = (hi - 0.5) * wi + 0.5
 
-        ax.plot(self.li, THI, c="k", linewidth=1.2)
+        ax.plot(self.li, thi, c="k", linewidth=1.2)
 
         ax.plot([0, self.length], [0.5, 0.5], linestyle="--",
                 linewidth=0.75, color=(0.4, 0.4, 0.4))
@@ -301,23 +485,21 @@ class SwathProfile():
         return LineString(coords)
 
     def _is_inside(self, line, width, raster):
-        """
-        Function that evaluates if all the swath lines will lie inside the raster
-        """
         buff_pol = line.buffer(width)
-        raster_extent = Polygon([(raster.XMin, raster.YMin), (raster.XMin, raster.YMax),
-                                 (raster.XMax, raster.YMax), (raster.XMax, raster.YMin),
-                                 (raster.XMin, raster.YMin)])
+        raster_extent = Polygon([(raster.XMin, raster.YMin), (raster.XMin, raster.YMax), (raster.XMax, raster.YMax),
+                                 (raster.XMax, raster.YMin), (raster.XMin, raster.YMin)])
+        inside = raster_extent.covers(buff_pol)
+        return inside
 
-        return raster_extent.contains(buff_pol)
 
-class SwathGraph():
+class SwathGraph:
     def __init__(self, swaths, fig, legend=True, drawdata=True):
         # Select active swath
         self.swaths = swaths
         self.nswaths = len(swaths)
         self.id = 0
         self.active_swath = self.swaths[self.id]
+        self.cid = None
         # Configure chart
         self.ax1 = fig.add_axes((0.1, 0.25, 0.85, 0.65))
         self.ax2 = fig.add_axes((0.1, 0.10, 0.85, 0.15))
@@ -338,7 +520,7 @@ class SwathGraph():
         self.ax1.clear()
         self.ax2.clear()
         self.active_swath.draw_swath(self.ax1, legend=self.legend, drawdata=self.drawdata)
-        self.active_swath.draw_THI(self.ax2, True)
+        self.active_swath.draw_thi(self.ax2, True)
         self.ax1.figure.canvas.draw()
 
     def button_press(self, event):
@@ -355,43 +537,45 @@ class SwathGraph():
         self.active_swath = self.swaths[self.id]
         self.draw()
 
-def main(line, dem, width, nlines, step, names, drawlegend, drawdata):   
-    #Read line shapefile and raster
+
+def main(line, dem, width, nlines, step, names, drawlegend, drawdata):
+    # Read line shapefile and raster
     centerlines, names = read_line_shapefile(line, names)
 
-    dem_raster = Open(dem)
+    dem_raster = open_raster(dem)
     if nlines == 0:
         nlines = None
     if step == 0:
         step = None
 
-    #Create the swath profiles list  
+    # Create the swath profiles list
     swath_profiles = []
     n = 0
     for centerline in centerlines:
-        sline = SwathProfile(centerline, dem_raster, width, nlines, step, name = names[n])
+        sline = SwathProfile(centerline, dem_raster, width, nlines, step, name=names[n])
         if len(sline.swaths) > 0:
             swath_profiles.append(sline)
         n += 1
 
-    #Create graphic and draw swath profiles
+    # Create graphic and draw swath profiles
     if len(swath_profiles) > 0:
         fig = plt.figure()
         swath_graph = SwathGraph(swath_profiles, fig, drawlegend, drawdata)
         plt.show()
         return swath_graph
 
-def read_line_shapefile(shapefile, names_field = ""):
+
+def read_line_shapefile(shapefile, names_field=""):
     """
     This function reads a line shapefile and returns a tuple (out_lines, out_names)
-    
+
     Parameters:
     ================
     shapefile :: *str*
       Path to the line shapefile with profile centerlines
     names_field :: *str (Default: ""*
       Name of the field with the profile names. If skipped, profiles will be named sequentially
-    
+
     Returns:
     ==============
     (out_lines, out_names) :: *tuple*
@@ -401,18 +585,11 @@ def read_line_shapefile(shapefile, names_field = ""):
     driver = ogr.GetDriverByName("ESRI Shapefile")
     dataset = driver.Open(shapefile)
     layer = dataset.GetLayer()
-    
+
     # layerdef = layer.GetLayerDefn()
     if not layer.GetGeomType() == 2:
         return
-    
-    # campos = [layerdef.GetFieldDefn(n).GetName() for n in range(layerdef.GetFieldCount())]
-    
-    #if names_field in campos:
-    #    inc_names = True
-    #else:
-    #    inc_names = False
-    
+
     out_names = []
     out_lines = []
     perfil_id = 0
@@ -425,7 +602,9 @@ def read_line_shapefile(shapefile, names_field = ""):
             coords.append((pt[0], pt[1]))
         out_lines.append(LineString(coords))
         perfil_id += 1
-        
+
     return out_lines, out_names
 
-sg = main(Line_Shapefile, Digital_Elevation_Model, Swath_width, Number_of_lines, Step_size, str(Names_field), Draw_legend, Draw_data)
+
+sg = main(Line_Shapefile, Digital_Elevation_Model, Swath_width, Number_of_lines,
+          Step_size, str(Names_field), Draw_legend, Draw_data)

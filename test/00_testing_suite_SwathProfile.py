@@ -14,10 +14,10 @@ from SwathProfile import main
 
 def test01():
     """
-    Test for main function of SwathProfile_qgs_debug.py
+    Test for main function of SwathProfile.py
     """
     print "=" * 70
-    print "Test 01 para SwathProfile_qgs_debug.py"
+    print "Test 01 para SwathProfile.py"
     inicio = time.time()
     # Input parameters
     line = "data/perfiles.shp"
