@@ -276,7 +276,7 @@ class SwathProfile():
         for idx in range(npoints):
             pt = line.interpolate(step_size * idx, normalized=True)
             xy = list(pt.coords)[0]
-            z = dem.GetXYValue(xy)
+            z = dem.get_xy_value(xy)
             if z == dem.nodata:
                 z = np.nan
             zi.append(z)

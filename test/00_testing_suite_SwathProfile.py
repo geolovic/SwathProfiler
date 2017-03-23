@@ -8,31 +8,24 @@ November 13, 2016
 Testing suite for the pRaster Python class
 """
 
-import os, sys
 import time
-
-#change to test alternative praster modules
 from SwathProfile import main
 
 
-#Cambiamos el working directoy
-working_folder = os.path.dirname(sys.argv[0])
-os.chdir(working_folder)
-
 def test01():
     """
-    Test for main function of SwathProfile.py
+    Test for main function of SwathProfile_qgs_debug.py
     """
     print "=" * 70
-    print "Test 01 para main() function of SwathProfile.py"
+    print "Test 01 para SwathProfile_qgs_debug.py"
     inicio = time.time()
-    #Input parameters
-    line = "data/in/perfiles.shp"
-    dem = "data/in/coskie.tif"
+    # Input parameters
+    line = "data/perfiles.shp"
+    dem = "data/coskie.tif"
     names = "Name"
     width = 500
     
-    drawdata = True
+    drawdata = False
     drawlegend = False
     nlines = 0
     step = 0
@@ -44,7 +37,6 @@ def test01():
     print "=" * 70
     
     return ret
-    
 
 
 res = test01()
