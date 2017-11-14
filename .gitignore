@@ -3,8 +3,29 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Ignore Mac DS_Store files
-.DS_Store
 
 # Ignore Pycharm project settings
 .idea
+
+# Compiled python files
+*.py[oc]
+
+# gedit files
+*~
+
+# Special dirs and files
+build/
+dist/
+bin/
+spyder.egg-info/
+Thumbs.db
+.DS_Store/
+spyder_crash.log
+.DS_Store
+.spyproject
+.idea/
+.cache
+.coverage
+
+# git .orig files
+*.orig
