@@ -149,10 +149,8 @@ class SwathProfile:
         if step_size is None or step_size < dem.cellsize:
             step_size = dem.cellsize
         
-        # Get number of lines (By default 50)
-        if n_lines is None:
-            n_lines = 50
-        elif n_lines > int(width/dem.cellsize):
+        # Get number of lines (By default width/dem.cellsize)
+        if n_lines is None or n_lines > int(width/dem.cellsize):
             n_lines = int(width/dem.cellsize)
         
         # Get distance between lines
@@ -175,7 +173,7 @@ class SwathProfile:
             dist = line_distance * (n+1)
             left_line = sline.parallel_offset(dist, side="left")
             right_line = sline.parallel_offset(dist, side="right") 
-            # Sometimes parallel_offset produces MultiLineStrings Â¿??
+            # Sometimes parallel_offset produces MultiLineStrings ÃÂ¿??
             if left_line.type == "MultiLineString":
                 left_line = self._combine_multilines(left_line)
             if right_line.type == "MultiLineString":
@@ -387,6 +385,7 @@ class SwathGraph:
             ax1 = self.figure.add_axes((0.1, 0.25, 0.85, 0.65))
             ax2 = self.figure.add_axes((0.1, 0.10, 0.85, 0.15))
             ax1.set_xticks(())
+            ax1.set_xticklabels(())
             ax2.set_yticks((0.0, 0.5, 1.0))
             ax2.yaxis.tick_right()
         else:
@@ -650,14 +649,14 @@ class PRaster:
         vec_adyacentes = [(-1, 0), (0, -1), (0, 1), (1, 0)]
         vec_diagonales = [(-1, -1), (-1, 1), (1, -1), (1, 1)]
         
-        # Suponemos que el valor mÃ¡ximo es el mismo
+        # Suponemos que el valor mÃÂ¡ximo es el mismo
         cell_value = self.get_cell_value(cell)
         
         max_value = cell_value
         max_pos = cell
     
         # La celda a la que va el flujo no tiene porque ser la de mayor valor de flow accumulation
-        # En el caso de que el flujo haga una L la mÃ¡xima es la diagonal, pero el flujo va a la adyacente
+        # En el caso de que el flujo haga una L la mÃÂ¡xima es la diagonal, pero el flujo va a la adyacente
         # Por ello primero se comprueban las celdas adyacentes y luego las diagonales
     
         for n in vec_adyacentes:
@@ -708,7 +707,6 @@ class PRaster:
 # MAIN PROGRAM
 # =============
 def main(line_shp, dem, name_field, width, nlines, step, fullres):   
-    
     # Read line shapefile and get names
     centerlines, names = read_line_shapefile(line_shp, name_field)
 
@@ -720,19 +718,33 @@ def main(line_shp, dem, name_field, width, nlines, step, fullres):
     
     # If nlines and step are 0, get default values
     if nlines == 0:
-        nlines = None
+        nlines = 50
     if step == 0:
-        step = None
+        step = dem_raster.cellsize
     
     # If fullresolution, take maximum resolution and discard previous values
     if fullres:
-        nlines = int(width/dem.cellsize)
-        step = dem.cellsize
-
+        nlines = int(width/dem_raster.cellsize)
+        step = dem_raster.cellsize
+        
+    # Log Messages
+    progress.setText("SwathProfiler started")
+    progress.setText("Found " + str(len(centerlines)) + " lines in the shapefile")
+    progress.setText("")
+    progress.setText("Parameters:")
+    progress.setText("Width: " + str(width) + " m" )
+    progress.setText("Number of lines: " + str(nlines))
+    progress.setText("Step size: " + str(step))
+    progress.setText("")
+    
     # Create the swath profiles list
     swath_profiles = []
     
     for idx, line in enumerate(centerlines):
+        
+        # Log Messages
+        progress.setText("Processing {0} of {1} lines".format(idx+1, len(centerlines)))
+        
         sline = SwathProfile(line, dem_raster, width=width, n_lines=nlines, 
                                            step_size=step, name=names[idx])      
         if len(sline.data) > 0:
