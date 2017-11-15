@@ -8,10 +8,7 @@ To install the toolbox, copy the **SwathProfiler.py** and **SwathProfiler.py.hel
 
 Alternatively you can use the **"Add script from file"** tool located in the **Processing Toolbox > Scripts > Tools**. (With this method will not include the help file).
 
-### Command line Instalation [Advanced]
-To install the command line version, you need Python 3 with the following libraries installed: numpy, matplotlib, gdal, ogr, shapely. Just copy the praster.py, swath.py and SwathProfile.py in a folder (Add that folder to the PATH variable if you want to access SwathProfile from any location).
-
-## Usage [QGIS]
+## Usage
 Just launch the Toolbox and fill the required parameters:
 
 ![SwathProfile Toolbox](https://geolovic.github.io/SwathProfiler/images/swath_toolbox.jpg)
